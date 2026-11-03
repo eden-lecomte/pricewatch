@@ -1,0 +1,21 @@
+{
+  "name": "pricewatch",
+  "version": "0.1.0",
+  "description": "Self-hosted price tracker: changedetection.io + PriceSpy discovery + optional Claude discovery, with a small dashboard and ntfy alerts.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/main.ts",
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}

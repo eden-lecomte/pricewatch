@@ -1,0 +1,28 @@
+# Example stack. Copy .env.example to .env first.
+# changedetection.io and ntfy are not included: point CHANGEDETECTION_URL / NTFY_URL at your own instances.
+services:
+  pricewatch:
+    build: .
+    container_name: pricewatch
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+
+  # Optional: daily Claude discovery job. Enable with: docker compose --profile discovery up -d
+  discovery:
+    build: ./discovery
+    container_name: pricewatch-discovery
+    restart: unless-stopped
+    profiles: ["discovery"]
+    depends_on: [pricewatch]
+    environment:
+      PRICEWATCH_URL: http://pricewatch:8080
+      PRICEWATCH_TOKEN: ${ADMIN_TOKEN}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
+      DISCOVERY_REGION: ${DISCOVERY_REGION:-New Zealand}
+      DISCOVERY_INTERVAL_HOURS: ${DISCOVERY_INTERVAL_HOURS:-24}

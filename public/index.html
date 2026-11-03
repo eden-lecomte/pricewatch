@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pricewatch</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="label" id="currencyLabel">Delivered prices</div>
+      <h1>Pricewatch</h1>
+    </div>
+    <div class="runbar">
+      <span>Prices synced: <b id="lastSync">—</b></span>
+      <span id="fx"></span>
+      <button class="btn ghost small" type="button" id="unlock">Edit</button>
+    </div>
+  </header>
+
+  <div class="notice" id="state" role="status">Loading…</div>
+
+  <section class="summary" aria-label="Summary">
+    <div class="stat"><div class="label">Watching</div><div class="v num" id="sCount">—</div></div>
+    <div class="stat"><div class="label">Alerts this week</div><div class="v num" id="sAlerts">—</div></div>
+    <div class="stat"><div class="label">Biggest drop vs trend</div><div class="v num" id="sDrop">—</div></div>
+  </section>
+
+  <div class="toolbar">
+    <div class="seg" role="group" aria-label="Filter">
+      <button type="button" data-f="all" aria-pressed="true">All</button>
+      <button type="button" data-f="buy" aria-pressed="false">Shortlist</button>
+      <button type="button" data-f="bargain" aria-pressed="false">Bargain hunt</button>
+      <button type="button" data-f="alert" aria-pressed="false">Alerts</button>
+    </div>
+    <div class="formrow" data-admin hidden>
+      <button class="btn ghost" type="button" id="syncNow">Sync now</button>
+      <button class="btn" type="button" id="openAdd">Add item</button>
+    </div>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <form class="panel" id="itemForm" hidden>
+    <h2 id="formTitle">Add an item</h2>
+    <div class="grid2">
+      <label class="f">Name<input id="fName" required maxlength="120" placeholder="34-inch QD-OLED monitor"></label>
+      <label class="f">Model / search terms <span class="h">What sellers call it, ideally a model number</span><input id="fQuery" maxlength="200" placeholder="AW3426DW"></label>
+      <label class="f">Category<select id="fCat"><option value="monitor">Monitor</option><option value="gpu">GPU</option><option value="dj">DJ / audio</option><option value="laptop">Laptop</option><option value="peripheral">Peripheral</option><option value="other">Other</option></select></label>
+      <label class="f">Priority<select id="fPri"><option value="buy">Shortlist (buying soon)</option><option value="bargain">Bargain hunt (only if cheap)</option></select></label>
+      <label class="f">Target price <span class="h">Delivered, in the base currency</span><input id="fTarget" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label class="f">PriceSpy product IDs <span class="h">Numbers from product.php?p=…, comma separated</span><input id="fPs" placeholder="16652319"></label>
+    </div>
+    <label class="cb"><input type="checkbox" id="fUsed"> Count used / ex-demo listings as offers</label>
+    <label class="f">Notes <span class="h">Also read by the discovery job, e.g. "any brand is fine"</span><textarea id="fNotes" maxlength="1000"></textarea></label>
+    <div class="formrow">
+      <button class="btn" type="submit">Save item</button>
+      <button class="btn ghost" type="button" id="fCancel">Cancel</button>
+      <span class="toast" id="fMsg" role="status"></span>
+    </div>
+  </form>
+
+  <form class="panel" id="sourceForm" hidden>
+    <h2 id="sourceTitle">Add a seller page</h2>
+    <label class="f">Product page URL<input id="sUrl" type="url" required></label>
+    <div class="grid2">
+      <label class="f">Seller name <span class="h">Optional</span><input id="sSeller" maxlength="80"></label>
+      <label class="f">Country<input id="sCountry" maxlength="8" placeholder="NZ"></label>
+    </div>
+    <label class="cb"><input type="checkbox" id="sWatch" checked> Track this page with changedetection</label>
+    <div class="grid2" id="sManual" hidden>
+      <label class="f">Price<input id="sPrice" type="number" min="0" step="0.01"></label>
+      <label class="f">Currency<input id="sCur" maxlength="3" placeholder="NZD"></label>
+      <label class="f">Shipping (base currency)<input id="sShip" type="number" min="0" step="1"></label>
+      <label class="f">Import fees (base currency)<input id="sImport" type="number" min="0" step="1"></label>
+    </div>
+    <div class="formrow">
+      <button class="btn" type="submit">Add</button>
+      <button class="btn ghost" type="button" id="sCancel">Cancel</button>
+      <span class="toast" id="sMsg" role="status"></span>
+    </div>
+  </form>
+</div>
+</body>
+</html>
