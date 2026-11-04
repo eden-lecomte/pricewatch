@@ -265,7 +265,8 @@ export function startServer(): void {
       const body = route.write ? await readBody(req) : {};
       await route.handler(req, res, params, body);
     } catch (e) {
-      const status = e instanceof HttpError ? e.status : 500;
+      const status = e instanceof HttpError ? e.status : e instanceof cd.ChangedetectionError ? 502 : 500;
+      if (status === 502) log.warn(`${req.method} ${url.pathname}: ${(e as Error).message}`);
       if (status === 500) log.error(`${req.method} ${url.pathname}: ${(e as Error).stack ?? e}`);
       send(res, status, { error: status === 500 ? "Internal error" : (e as Error).message });
     }

@@ -22,17 +22,27 @@ export function enabled(): boolean {
   return Boolean(config.changedetection.url && config.changedetection.apiKey);
 }
 
+/** Raised when changedetection is unreachable or answers with an error. */
+export class ChangedetectionError extends Error {}
+
+async function cdFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    return await fetch(`${config.changedetection.url}/api/v1${path}`, {
+      ...init,
+      signal: AbortSignal.timeout(20_000),
+      headers: { "x-api-key": config.changedetection.apiKey, "Content-Type": "application/json", ...(init.headers ?? {}) },
+    });
+  } catch (e) {
+    const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+    const why = cause?.code ?? cause?.message ?? (e as Error).message;
+    throw new ChangedetectionError(`Can't reach changedetection at ${config.changedetection.url} (${why}). Check CHANGEDETECTION_URL is reachable from this container.`);
+  }
+}
+
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${config.changedetection.url}/api/v1${path}`, {
-    ...init,
-    headers: {
-      "x-api-key": config.changedetection.apiKey,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  });
+  const res = await cdFetch(path, init);
   const text = await res.text();
-  if (!res.ok) throw new Error(`changedetection ${path}: HTTP ${res.status} ${text.slice(0, 200)}`);
+  if (!res.ok) throw new ChangedetectionError(`changedetection ${path}: HTTP ${res.status} ${text.slice(0, 200)}`);
   try {
     return JSON.parse(text) as T;
   } catch {
@@ -45,10 +55,8 @@ export const listWatches = () => api<Record<string, CdWatchSummary>>("/watch");
 export const listTags = () => api<Record<string, { title: string }>>("/tags");
 
 export async function latestSnapshot(uuid: string): Promise<string> {
-  const res = await fetch(`${config.changedetection.url}/api/v1/watch/${uuid}/history/latest`, {
-    headers: { "x-api-key": config.changedetection.apiKey },
-  });
-  if (!res.ok) throw new Error(`snapshot ${uuid}: HTTP ${res.status}`);
+  const res = await cdFetch(`/watch/${uuid}/history/latest`);
+  if (!res.ok) throw new ChangedetectionError(`snapshot ${uuid}: HTTP ${res.status}`);
   return res.text();
 }
 
