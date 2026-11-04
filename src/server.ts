@@ -4,12 +4,12 @@ import { timingSafeEqual } from "node:crypto";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "./config.ts";
-import { db, kvGet, nowIso } from "./db.ts";
+import { db, kvGet, kvSet, nowIso } from "./db.ts";
 import { getRates } from "./fx.ts";
 import * as cd from "./changedetection.ts";
 import { log } from "./log.ts";
 import { addDiscovery, getItem, itemView, listItems, recordObservation, slugify, upsertSource } from "./store.ts";
-import { sellerFromUrl } from "./jobs.ts";
+import { recordWatch, sellerFromUrl, type UnlinkedWatch } from "./jobs.ts";
 
 const PUBLIC_DIR = fileURLToPath(new URL("../public/", import.meta.url));
 const MAX_BODY = 64 * 1024;
@@ -180,6 +180,34 @@ const routes: Route[] = [
         if (addDiscovery({ item_id: item.id, origin: s(d.origin, 20) || "claude", text, url: httpUrl(d.url) || null, price: n(d.price), currency: s(d.currency, 3).toUpperCase() || null, seller: s(d.seller, 80) || null })) added++;
       }
       send(res, 201, { added });
+    },
+  },
+  {
+    // changedetection watches not linked to any item yet (refreshed on every sync).
+    method: "GET", pattern: /^\/api\/watches\/unlinked$/, write: true,
+    handler: (_q, res) => send(res, 200, kvGet<UnlinkedWatch[]>("cd.unlinked", [])),
+  },
+  {
+    // Link a changedetection watch to an item without needing a tag.
+    method: "POST", pattern: /^\/api\/watches\/([0-9a-f-]{8,64})\/link$/, write: true,
+    handler: async (_q, res, [uuid], b) => {
+      const item = requireItem(s(b.itemId, 40));
+      const unlinked = kvGet<UnlinkedWatch[]>("cd.unlinked", []);
+      const w = unlinked.find((x) => x.uuid === uuid);
+      if (!w) throw new HttpError(404, "Unknown or already linked watch. Run a sync and try again.");
+      const src = upsertSource({ item_id: item.id, kind: "changedetection", ext_key: uuid, cd_uuid: uuid, url: w.url, seller: s(b.seller, 80) || sellerFromUrl(w.url) });
+      kvSet("cd.unlinked", unlinked.filter((x) => x.uuid !== uuid));
+      await recordWatch(src);
+      send(res, 200, { source: src.id });
+    },
+  },
+  {
+    // Stop using a seller page for an item. Watches linked by a pw: tag come back unless the tag is removed.
+    method: "DELETE", pattern: /^\/api\/sources\/(\d+)$/, write: true,
+    handler: (_q, res, [id]) => {
+      const r = db.prepare("UPDATE sources SET active = 0 WHERE id = ?").run(Number(id));
+      if (!r.changes) throw new HttpError(404, "No such source");
+      send(res, 200, { removed: Number(id) });
     },
   },
   {

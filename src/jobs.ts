@@ -28,20 +28,31 @@ export async function syncChangedetection(): Promise<void> {
     }
   }
 
+  // Watches linked from the dashboard (no tag needed), keyed by watch uuid.
+  const linked = new Map<string, SourceRow[]>();
+  for (const s of db.prepare("SELECT * FROM sources WHERE kind = 'changedetection' AND active = 1").all() as unknown as SourceRow[]) {
+    if (!s.ext_key) continue;
+    linked.set(s.ext_key, [...(linked.get(s.ext_key) ?? []), s]);
+  }
+
   let recorded = 0;
+  const unlinked: UnlinkedWatch[] = [];
   for (const [uuid, w] of Object.entries(watches)) {
-    const itemIds = (w.tags ?? []).map((t) => tagToItem.get(t)).filter((x): x is string => Boolean(x));
-    for (const itemId of itemIds) {
+    const tagged = (w.tags ?? []).map((t) => tagToItem.get(t)).filter((x): x is string => Boolean(x));
+    const sources: SourceRow[] = [...(linked.get(uuid) ?? [])];
+    for (const itemId of tagged) {
+      if (sources.some((s) => s.item_id === itemId)) continue;
       const item = getItem(itemId);
       if (!item || !item.active) continue;
-      const src = upsertSource({
-        item_id: itemId,
-        kind: "changedetection",
-        ext_key: uuid,
-        cd_uuid: uuid,
-        seller: sellerFromUrl(w.url),
-        url: w.url,
-      });
+      sources.push(upsertSource({ item_id: itemId, kind: "changedetection", ext_key: uuid, cd_uuid: uuid, seller: sellerFromUrl(w.url), url: w.url }));
+    }
+    if (!sources.length) {
+      unlinked.push({ uuid, url: w.url, title: w.title || w.page_title || w.url, paused: Boolean(w.paused), lastChecked: w.last_checked || null });
+      continue;
+    }
+    for (const src of sources) {
+      const item = getItem(src.item_id);
+      if (!item || !item.active) continue;
       if (w.paused || !w.last_checked) continue;
       try {
         const snap = cd.parseSnapshot(await cd.latestSnapshot(uuid));
@@ -54,8 +65,28 @@ export async function syncChangedetection(): Promise<void> {
       }
     }
   }
+  kvSet("cd.unlinked", unlinked);
   kvSet("lastSync.changedetection", nowIso());
-  log.info(`changedetection sync: ${recorded} observations`);
+  log.info(`changedetection sync: ${recorded} observations, ${unlinked.length} unlinked watches`);
+}
+
+export interface UnlinkedWatch {
+  uuid: string;
+  url: string;
+  title: string;
+  paused: boolean;
+  lastChecked: number | null;
+}
+
+/** Record the latest snapshot for one watch right away (used after linking from the dashboard). */
+export async function recordWatch(src: SourceRow): Promise<void> {
+  if (!cd.enabled() || !src.ext_key) return;
+  try {
+    const snap = cd.parseSnapshot(await cd.latestSnapshot(src.ext_key));
+    recordObservation(src, { price: snap.price, inStock: snap.inStock, raw: snap.raw });
+  } catch (e) {
+    log.warn(`watch ${src.ext_key}: ${(e as Error).message}`);
+  }
 }
 
 function lastStock(src: SourceRow): boolean | null {

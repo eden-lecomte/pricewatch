@@ -66,7 +66,7 @@
         const cond = o.condition !== "new" ? ` <span class="chip warn">${esc(o.condition)}</span>` : "";
         const raw = o.raw ? `<div class="muted">${esc(o.raw.slice(0, 140))}</div>` : "";
         const isBest = it.best && it.best.sourceId === o.sourceId;
-        return `<tr class="${isBest ? "best" : ""} ${o.stale ? "stale" : ""}"><td>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(o.seller)}</a>` : esc(o.seller)}${cond}<div class="muted">${esc(o.kind)}</div>${raw}</td><td>${esc(o.country || "—")}</td><td class="r num">${o.price == null ? "—" : money(o.price)}${orig}</td><td class="r num">${o.shipping == null ? "?" : money(o.shipping)}</td><td class="r num">${o.importFees == null ? "—" : money(o.importFees)}</td><td class="r num"><b>${money(o.total)}</b></td><td>${stock}</td><td class="muted">${ago(o.checkedAt)}</td></tr>`;
+        return `<tr class="${isBest ? "best" : ""} ${o.stale ? "stale" : ""}"><td>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(o.seller)}</a>` : esc(o.seller)}${cond}<div class="muted">${esc(o.kind)}</div>${raw}${state.token ? `<div class="rm"><button type="button" class="btn danger small" data-rmsrc="${o.sourceId}">Remove</button></div>` : ""}</td><td>${esc(o.country || "—")}</td><td class="r num">${o.price == null ? "—" : money(o.price)}${orig}</td><td class="r num">${o.shipping == null ? "?" : money(o.shipping)}</td><td class="r num">${o.importFees == null ? "—" : money(o.importFees)}</td><td class="r num"><b>${money(o.total)}</b></td><td>${stock}</td><td class="muted">${ago(o.checkedAt)}</td></tr>`;
       }).join("")}</tbody></table></div>`;
   }
 
@@ -128,6 +128,22 @@
     }).join("");
   }
 
+  function renderUnlinked(list) {
+    const box = $("#unlinked");
+    if (!state.token || !list.length) { box.hidden = true; return; }
+    const opts = state.items.map((it) => `<option value="${esc(it.id)}">${esc(it.name)}</option>`).join("");
+    $("#unlinkedList").innerHTML = list.map((w) => `<div class="uw">
+      <div class="t"><b>${esc(w.title)}</b>${w.paused ? ' <span class="chip">Paused</span>' : ""}<div>${safeUrl(w.url) ? `<a href="${esc(w.url)}" target="_blank" rel="noopener noreferrer">${esc(w.url)}</a>` : esc(w.url)}</div></div>
+      <select aria-label="Item for ${esc(w.title)}" data-uw="${esc(w.uuid)}"><option value="">Choose item…</option>${opts}</select>
+      <button type="button" class="btn small" data-link="${esc(w.uuid)}">Link</button></div>`).join("");
+    box.hidden = false;
+  }
+
+  async function loadUnlinked() {
+    if (!state.token) return renderUnlinked([]);
+    try { renderUnlinked(await api("/api/watches/unlinked")); } catch { renderUnlinked([]); }
+  }
+
   async function load() {
     try {
       const [health, items] = await Promise.all([api("/api/health"), api("/api/items")]);
@@ -140,6 +156,7 @@
       $("#fx").textContent = fxBits.length ? `FX: ${fxBits.join(" · ")}` : "";
       $("#state").hidden = true;
       render();
+      await loadUnlinked();
       if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
     } catch (e) {
       $("#state").hidden = false; $("#state").className = "notice warn";
@@ -159,7 +176,7 @@
 
   // ----- admin token (kept only in this browser)
   $("#unlock").addEventListener("click", () => {
-    if (state.token) { state.token = null; store.set("pw-token", null); render(); return; }
+    if (state.token) { state.token = null; store.set("pw-token", null); render(); renderUnlinked([]); return; }
     const box = $("#state");
     box.hidden = false; box.className = "notice";
     box.innerHTML = `<form id="tokForm" class="formrow"><label class="f" style="flex:1">Admin token<input id="tok" type="password" autocomplete="current-password"></label><button class="btn" type="submit">Unlock</button></form>`;
@@ -237,6 +254,32 @@
     }
     try { await api(`/api/items/${encodeURIComponent(id)}`, { method: "DELETE" }); await load(); }
     catch (err) { if (msg) msg.textContent = "Couldn't remove: " + err.message; }
+  });
+
+  $("#unlinkedList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-link]");
+    if (!b) return;
+    const sel = document.querySelector(`select[data-uw="${CSS.escape(b.dataset.link)}"]`);
+    if (!sel?.value) { sel?.focus(); return; }
+    b.disabled = true; b.textContent = "Linking…";
+    try { await api(`/api/watches/${encodeURIComponent(b.dataset.link)}/link`, { method: "POST", body: JSON.stringify({ itemId: sel.value }) }); await load(); }
+    catch (err) { b.disabled = false; b.textContent = "Link"; alertBox("Couldn't link: " + err.message); }
+  });
+
+  function alertBox(msg) { const st = $("#state"); st.hidden = false; st.className = "notice warn"; st.textContent = msg; }
+
+  const pendingRm = new Set();
+  $("#list").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-rmsrc]");
+    if (!b) return;
+    const id = b.dataset.rmsrc;
+    if (!pendingRm.has(id)) {
+      pendingRm.add(id); b.textContent = "Click again";
+      setTimeout(() => { pendingRm.delete(id); if (b.isConnected) b.textContent = "Remove"; }, 4000);
+      return;
+    }
+    try { await api(`/api/sources/${encodeURIComponent(id)}`, { method: "DELETE" }); await load(); }
+    catch (err) { alertBox("Couldn't remove: " + err.message); }
   });
 
   $("#syncNow").addEventListener("click", async () => {

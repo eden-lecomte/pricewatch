@@ -20,7 +20,7 @@ Claude discovery ───(daily, optional)───────────┘ 
 
 - **Items** are the things you want to buy. Each item can have:
   - PriceSpy product IDs (the number in `product.php?p=…`), read every few hours. Every seller listed there becomes an offer.
-  - changedetection watches, linked by tagging the watch `pw:<item-id>` (prefix configurable). Use the "Re-stock & Price detection" processor so snapshots contain the price.
+  - changedetection watches. Untagged watches appear on the dashboard (when unlocked) under **New changedetection watches**, where you pick the item each one belongs to. Alternatively tag the watch `pw:<item-id>` (prefix configurable) and it links itself. Use the "Re-stock & Price detection" processor so snapshots contain the price.
   - manual seller pages with a price you enter (e.g. an overseas store with known shipping and import fees).
 - **Best price** = cheapest fresh offer that is in stock (falling back to unknown stock), converted to `BASE_CURRENCY` with live ECB rates, plus shipping and import fees.
 - **Alerts** (ntfy): best price at or under your target, best price 5%+ under the 7-day median, a new seller that beats the current best, and back-in-stock. Repeats are suppressed for 7 days.
@@ -84,6 +84,9 @@ All responses are JSON. Writes need `Authorization: Bearer $ADMIN_TOKEN`.
 | POST | `/api/items` | `{name, query, category, priority: "buy"\|"bargain", target, pricespyIds, allowUsed, notes}` |
 | PATCH / DELETE | `/api/items/:id` | Edit / remove |
 | POST | `/api/items/:id/sources` | `{url, seller, country, watch: true}` creates a tagged changedetection watch; without `watch`, add `price, currency, shipping, importFees, inStock` for a manual offer |
+| GET | `/api/watches/unlinked` | changedetection watches not linked to an item (admin) |
+| POST | `/api/watches/:uuid/link` | `{itemId}` links a watch to an item |
+| DELETE | `/api/sources/:id` | Stop using a seller page (remove the `pw:` tag too, if it has one) |
 | POST | `/api/discoveries` | `{discoveries: [{itemId, text, url, price, currency, seller}]}` |
 | POST | `/api/sync` | Run the changedetection and PriceSpy syncs now |
 

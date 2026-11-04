@@ -32,7 +32,7 @@ export const config = {
   /** Fallback FX rates if the live lookup fails, e.g. "USD=1.70,AUD=1.10" (1 unit -> base). */
   fxFallback: str("FX_FALLBACK", ""),
   /** Live FX source (ECB rates via frankfurter, no key). Set to "" to disable. */
-  fxUrl: str("FX_URL", "https://api.frankfurter.app/latest"),
+  fxUrl: process.env.FX_URL ?? "https://api.frankfurter.app/latest",
 
   changedetection: {
     url: str("CHANGEDETECTION_URL").replace(/\/+$/, ""),
