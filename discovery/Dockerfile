@@ -1,4 +1,7 @@
-FROM node:22-alpine
+# Debian slim rather than Alpine: Claude Code needs bash and is best supported on glibc.
+FROM node:22-slim
+
+ENV SHELL=/bin/bash
 
 RUN npm install -g @anthropic-ai/claude-code \
  && npm cache clean --force
