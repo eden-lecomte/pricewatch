@@ -92,7 +92,7 @@ All responses are JSON. Writes need `Authorization: Bearer $ADMIN_TOKEN`.
 
 ## Discovery job (optional)
 
-`discovery/` contains a container that runs [Claude Code](https://docs.claude.com/en/docs/claude-code) headless once a day. It reads the watchlist, searches the web for sellers that aren't known yet (respecting robots.txt and never using logged-in sites), and posts findings to `/api/discoveries`. It can only use web search, web fetch and `curl`, and the prompt limits it to the endpoints above.
+`discovery/` contains a container that runs [Claude Code](https://docs.claude.com/en/docs/claude-code) headless once a day. It reads the watchlist, searches the web for sellers that aren't known yet (respecting robots.txt and never using logged-in sites), and posts findings to `/api/discoveries`. It can only use web search, web fetch and a small `pw` helper (`discovery/pw.mjs`) that reads the API address and token from the environment, so the token never appears in any command Claude runs.
 
 ```bash
 claude setup-token          # on any machine with Claude Code; copy the token

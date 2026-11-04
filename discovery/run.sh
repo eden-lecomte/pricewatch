@@ -15,7 +15,7 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 run_once() {
   echo "$(date -u +%FT%TZ) discovery: starting"
   PROMPT="$(sed "s/__REGION__/${REGION}/g" "$DIR/prompt.md")"
-  set -- -p "$PROMPT" --allowedTools "WebSearch,WebFetch,Bash(curl:*)" --output-format text
+  set -- -p "$PROMPT" --allowedTools "WebSearch,WebFetch,Bash(pw:*)" --output-format text
   if [ -n "${DISCOVERY_MODEL:-}" ]; then set -- "$@" --model "$DISCOVERY_MODEL"; fi
   claude "$@" || echo "$(date -u +%FT%TZ) discovery: run failed"
   echo "$(date -u +%FT%TZ) discovery: done"
