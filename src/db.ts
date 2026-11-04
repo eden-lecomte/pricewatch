@@ -3,8 +3,24 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { config } from "./config.ts";
 
-mkdirSync(config.dataDir, { recursive: true });
-export const db = new DatabaseSync(join(config.dataDir, "pricewatch.db"));
+function openDb(): DatabaseSync {
+  const file = join(config.dataDir, "pricewatch.db");
+  try {
+    mkdirSync(config.dataDir, { recursive: true });
+    return new DatabaseSync(file);
+  } catch (e) {
+    const uid = typeof process.getuid === "function" ? process.getuid() : "?";
+    const gid = typeof process.getgid === "function" ? process.getgid() : "?";
+    console.error(
+      `Cannot open ${file}: ${(e as Error).message}\n` +
+      `The data folder must be writable by the user this process runs as (uid ${uid}, gid ${gid}).\n` +
+      `Fix: chown the mapped folder to ${uid}:${gid}, or run the container as the folder's owner (e.g. --user 99:100 on Unraid).`,
+    );
+    process.exit(1);
+  }
+}
+
+export const db = openDb();
 
 db.exec(`
 PRAGMA journal_mode = WAL;

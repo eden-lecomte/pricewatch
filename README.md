@@ -51,6 +51,9 @@ Build the image (or use the compose file with the Compose Manager plugin), then:
 | Port | container `8080` → any free host port |
 | Path | container `/data` → `/mnt/user/appdata/pricewatch` |
 | Variables | as in `.env.example` (at least `ADMIN_TOKEN`) |
+| Extra Parameters | `--user 99:100` (matches Unraid's usual appdata owner) |
+
+The image runs as a non-root user (uid 1000) by default, so the `/data` folder must be writable by whichever user it runs as. Either add `--user 99:100` as above, or `chown -R 1000:1000` the appdata folder. Otherwise it exits with "Cannot open …/pricewatch.db".
 
 If the container has Unraid's Tailscale integration enabled, Tailscale replaces the container's DNS, so other containers can't be reached by name. Use their IP or host port in `CHANGEDETECTION_URL`, or add `--accept-dns=false` to the Tailscale extra parameters.
 
